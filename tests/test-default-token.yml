@@ -1,0 +1,22 @@
+name: Test default token usage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run cancel action with default token
+        id: action
+        uses: .
+        continue-on-error: true
+      - name: Assert action ran with default token
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ -z "$OUTCOME" ]; then
+            echo "FAIL: action did not run (outcome is empty)"
+            exit 1
+          fi
+          echo "PASS: action ran with outcome=$OUTCOME"

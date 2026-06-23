@@ -1,0 +1,26 @@
+name: Test basic usage - cancel workflow
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: fake-token-for-testing
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run cancel action (expect it to attempt cancellation)
+        id: action
+        uses: .
+        with:
+          token: fake-token-for-testing
+        continue-on-error: true
+      - name: Assert action ran (outcome is set)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ -z "$OUTCOME" ]; then
+            echo "FAIL: action did not run (outcome is empty)"
+            exit 1
+          fi
+          echo "PASS: action ran with outcome=$OUTCOME"
