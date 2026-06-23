@@ -9,6 +9,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
 | v1.02 | [`v1.02`](https://github.com/chainguard-actions/action-pack-cancel/tree/v1.02) | [`3211c6f`](https://github.com/action-pack/cancel/commit/3211c6f5ccc7bdd8f8c345e6a304ac2a9b06d853) |
+| v1.04 | [`v1.04`](https://github.com/chainguard-actions/action-pack-cancel/tree/v1.04) | [`d46469a`](https://github.com/action-pack/cancel/commit/d46469a41f9214a3a83cf1f151af34a6a5ef64c9) |
 
 ## Privacy
 
