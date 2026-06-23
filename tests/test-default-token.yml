@@ -1,0 +1,30 @@
+name: Test cancel action with default token
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_RUN_ID: "99999"
+      GITHUB_JOB: test-default-token
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run cancel action without explicit token (uses default github.token)
+        id: cancel
+        uses: .
+        continue-on-error: true
+
+      - name: Assert action ran (not skipped)
+        env:
+          OUTCOME: ${{ steps.cancel.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # In act, the action will fail because there is no real GitHub API.
+          # We verify it ran (outcome is 'failure' or 'success') — not that it was skipped.
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped, expected it to run"
+            exit 1
+          fi
+          echo "PASS: action ran with outcome=$OUTCOME (failure expected in act environment without real API)"
