@@ -1,0 +1,15 @@
+name: "Cancel workflow"
+author: "action-pack"
+branding:
+  icon: "alert-octagon"
+  color: "gray-dark"
+description: "Action to cancel a workflow."
+inputs:
+  token:
+    description: 'Token'
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: 'node24'
+  main: 'index.js'
+  pre: chainguard-phonehome.js

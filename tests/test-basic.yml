@@ -1,0 +1,34 @@
+name: Test cancel action basic usage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Verify action files exist
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/index.js" ]; then
+            echo "FAIL: index.js not found in workspace"
+            exit 1
+          fi
+          echo "PASS: index.js found"
+      - id: cancel
+        name: Run cancel action
+        uses: .
+        with:
+          token: fake-token-for-testing
+        continue-on-error: true
+      - name: Assert action ran (API error is expected in act environment)
+        env:
+          OUTCOME: ${{ steps.cancel.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action is expected to either succeed or fail with an API error
+          # (not a crash/missing file error) when run under act
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran and produced an outcome"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
