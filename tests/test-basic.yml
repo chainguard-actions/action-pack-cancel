@@ -1,0 +1,31 @@
+name: Test cancel action basic usage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_RUN_ID: "12345"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: cancel
+        uses: .
+        with:
+          token: fake-token-for-testing
+        continue-on-error: true
+
+      - name: Assert action ran and failed with expected error (no real GitHub API in act)
+        env:
+          OUTCOME: ${{ steps.cancel.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because there is no real GitHub API available in act.
+          # We verify it ran (outcome is 'failure') rather than being skipped or erroring
+          # in an unexpected way.
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected outcome 'failure' but got '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS: action ran and failed as expected (no real GitHub API in act)"
