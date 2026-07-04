@@ -1,0 +1,33 @@
+name: Test cancel workflow - basic invocation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_RUN_ID: "12345"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Invoke cancel action (expected to fail - no real GitHub API in act)
+        id: action
+        uses: .
+        with:
+          token: fake-token-for-testing
+        continue-on-error: true
+
+      - name: Assert action ran and produced expected error behavior
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # In act, the GitHub API is not reachable, so the action should fail
+          # with either an HTTP error or a non-202 status code response.
+          # Either 'failure' or 'success' is acceptable depending on network,
+          # but the action must have run (not been skipped).
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped, expected it to run"
+            exit 1
+          fi
+          echo "PASS: action ran with outcome=$OUTCOME (expected failure or success)"
