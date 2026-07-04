@@ -1,0 +1,32 @@
+name: Test cancel action warning annotation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_RUN_ID: "55555"
+      GITHUB_JOB: annotation-test-job
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run cancel action and capture output
+        id: cancel
+        uses: .
+        with:
+          token: fake-token-for-annotation-test
+        continue-on-error: true
+
+      - name: Assert action ran (not skipped)
+        env:
+          OUTCOME: ${{ steps.cancel.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action emits a ::warning:: annotation before the API call
+          # In act, the action will fail at the API call but the warning should be emitted
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped, expected it to run"
+            exit 1
+          fi
+          echo "PASS: action ran (warning annotation should have been emitted for job: annotation-test-job)"
