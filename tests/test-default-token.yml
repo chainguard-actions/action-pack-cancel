@@ -1,4 +1,4 @@
-name: Test default token usage
+name: Test cancel workflow with default token
 on:
   workflow_dispatch:
 jobs:
@@ -6,17 +6,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Run cancel action with default token
+      - name: Run cancel action with default token (no explicit token input)
         id: action
         uses: .
+        # No 'token' input provided — the action uses the default ${{ github.token }}
+        # Under act, GITHUB_RUN_ID is a fake run ID so the API returns an error.
+        # The action will exit 1 (non-202 response). We use continue-on-error
+        # to capture this and assert the action ran (not skipped).
         continue-on-error: true
       - name: Assert action ran with default token
-        env:
-          OUTCOME: ${{ steps.action.outcome }}
         run: |
-          echo "outcome: $OUTCOME"
-          if [ -z "$OUTCOME" ]; then
-            echo "FAIL: action did not run (outcome is empty)"
+          echo "Action outcome: ${{ steps.action.outcome }}"
+          # The action should have run (not been skipped).
+          # Under act with a fake run ID, the API returns an error, so outcome
+          # is 'failure'. We just verify it ran at all.
+          if [ "${{ steps.action.outcome }}" = "skipped" ]; then
+            echo "FAIL: action was skipped, expected it to run"
             exit 1
           fi
-          echo "PASS: action ran with outcome=$OUTCOME"
+          echo "PASS: action ran with default token (outcome: ${{ steps.action.outcome }})"

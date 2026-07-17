@@ -1,26 +1,32 @@
-name: Test basic usage - cancel workflow
+name: Test basic cancel workflow
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: fake-token-for-testing
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Run cancel action (expect it to attempt cancellation)
+      - name: Run cancel action
         id: action
         uses: .
         with:
-          token: fake-token-for-testing
+          token: ${{ github.token }}
+        # The action cancels the current workflow run via the GitHub API.
+        # Under act, GITHUB_RUN_ID is a fake/non-existent run ID, so the API
+        # returns a non-202 response (404 or similar). The action will exit 1
+        # in that case. We use continue-on-error to capture this expected
+        # behavior and assert on the outcome.
         continue-on-error: true
-      - name: Assert action ran (outcome is set)
-        env:
-          OUTCOME: ${{ steps.action.outcome }}
+      - name: Assert action ran and produced expected result
         run: |
-          echo "outcome: $OUTCOME"
-          if [ -z "$OUTCOME" ]; then
-            echo "FAIL: action did not run (outcome is empty)"
+          echo "Action outcome: ${{ steps.action.outcome }}"
+          # Under act, the run ID does not correspond to a real workflow run,
+          # so the GitHub API returns an error (not 202). The action exits 1.
+          # We accept either 'success' (if the API happened to accept it) or
+          # 'failure' (expected under act with a fake run ID).
+          # The key assertion is that the action ran at all (not skipped).
+          if [ "${{ steps.action.outcome }}" = "skipped" ]; then
+            echo "FAIL: action was skipped, expected it to run"
             exit 1
           fi
-          echo "PASS: action ran with outcome=$OUTCOME"
+          echo "PASS: action ran (outcome: ${{ steps.action.outcome }})"

@@ -1,0 +1,72 @@
+name: Build
+
+on: 
+  workflow_dispatch:
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    -
+      name: Checkout
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      with:
+        fetch-depth: 0
+    - 
+      name: Get previous tag
+      id: previousTag
+      env:
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        name=$(git --no-pager tag --sort=creatordate --merged "$REF_NAME" | tail -1)
+        echo "previousTag: $name"
+        safe=$(printf '%s' "$name" | tr -d '\n\r')
+        echo "previousTag=$safe" >> "$GITHUB_ENV"
+    -
+      name: Generate changelog
+      id: changelog
+      uses: requarks/changelog-action@b78a3354a01f4a1affb484b9264b506a815c46b1 # v1
+      with:
+        token: ${{ github.token }}
+        fromTag: ${{ github.ref_name }}
+        toTag: ${{ env.previousTag }}
+        writeToFile: false
+        reverseOrder: true
+        includeInvalidCommits: true
+        excludeTypes: "docs,build,chore"
+    -
+      name: Create a release
+      uses: action-pack/github-release@2614fdae89655edf9e0661a4f933891f2ba8d3b5 # v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+      with:
+        tag: "v${{ vars.MAJOR }}.${{ vars.MINOR }}"
+        title: "v${{ vars.MAJOR }}.${{ vars.MINOR }}"
+        body: |
+          ${{ steps.changelog.outputs.changes }}
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare//${{ env.previousTag }}...v${{ vars.MAJOR }}.${{ vars.MINOR }}
+    -
+      name: Update major release
+      uses: action-pack/github-release@2614fdae89655edf9e0661a4f933891f2ba8d3b5 # v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+      with:
+        tag: "v${{ vars.MAJOR }}"
+        title: "v${{ vars.MAJOR }}"
+        body: |
+          ${{ steps.changelog.outputs.changes }}
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare//${{ env.previousTag }}...v${{ vars.MAJOR }}.${{ vars.MINOR }}
+    -
+      name: Increment version variable
+      uses: action-pack/bump@f1ef267a89c9d1ca81c6f68ae05c9b2370fca939 # v2
+      with:
+        token: ${{ secrets.REPO_ACCESS_TOKEN }}
