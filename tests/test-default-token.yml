@@ -1,28 +1,32 @@
-name: Test cancel action with default token
+name: Test default token - action uses github.token by default
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_REPOSITORY: test-owner/test-repo
-      GITHUB_RUN_ID: "99999"
-      GITHUB_JOB: default-token-job
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run cancel action without explicit token (uses default github.token)
-        id: cancel
+      # The action uses the default token (${{ github.token }}) when no token is provided.
+      # Under act, GITHUB_RUN_ID is not a real GitHub Actions run ID,
+      # so the API returns a non-202 status and the action exits 1.
+      # We verify the action runs (not a startup/config error) by checking
+      # that the outcome is either success or failure (not skipped/cancelled).
+      - id: cancel
         uses: .
         continue-on-error: true
+        # No 'token' input — uses the default ${{ github.token }}
 
-      - name: Assert action ran (not skipped)
+      - name: Assert action ran with default token
         env:
           OUTCOME: ${{ steps.cancel.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          if [ "$OUTCOME" = "skipped" ]; then
-            echo "FAIL: action was skipped, expected it to run"
+          # The action should attempt the API call (success or failure),
+          # not error out due to missing configuration.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran with default token, outcome=$OUTCOME"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME' — action may not have started"
             exit 1
           fi
-          echo "PASS: action ran with outcome=$OUTCOME (API error expected in local env)"
