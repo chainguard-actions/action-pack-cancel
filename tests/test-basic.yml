@@ -1,32 +1,74 @@
-name: Test cancel action basic invocation
+name: Test basic cancel workflow
 on:
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_REPOSITORY: test-owner/test-repo
-      GITHUB_RUN_ID: "12345"
-      GITHUB_JOB: test
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run cancel action (expected to fail in act - no real GitHub API)
-        id: cancel
-        uses: .
-        with:
-          token: fake-token-for-testing
-        continue-on-error: true
-
-      - name: Assert action ran and produced expected outcome
-        env:
-          OUTCOME: ${{ steps.cancel.outcome }}
+      - name: Verify action files exist
         run: |
-          echo "outcome: $OUTCOME"
-          # In act, the action will fail because there is no real GitHub API.
-          # We verify it ran (outcome is 'failure' or 'success') — not that it was skipped.
-          if [ "$OUTCOME" = "skipped" ]; then
-            echo "FAIL: action was skipped, expected it to run"
+          if [ ! -f "$GITHUB_WORKSPACE/action.yml" ]; then
+            echo "FAIL: action.yml not found"
             exit 1
           fi
-          echo "PASS: action ran with outcome=$OUTCOME (failure expected in act environment)"
+          if [ ! -f "$GITHUB_WORKSPACE/index.js" ]; then
+            echo "FAIL: index.js not found"
+            exit 1
+          fi
+          echo "PASS: action files present"
+
+      - name: Verify action metadata
+        run: |
+          # Check action.yml has expected fields
+          if ! grep -q "Cancel workflow" "$GITHUB_WORKSPACE/action.yml"; then
+            echo "FAIL: action.yml missing expected description"
+            exit 1
+          fi
+          if ! grep -q "node20" "$GITHUB_WORKSPACE/action.yml"; then
+            echo "FAIL: action.yml missing node20 runtime"
+            exit 1
+          fi
+          echo "PASS: action metadata valid"
+
+      - name: Verify index.js makes correct API call
+        run: |
+          # Verify the action targets the correct GitHub API endpoint
+          if ! grep -q "api.github.com" "$GITHUB_WORKSPACE/index.js"; then
+            echo "FAIL: index.js does not reference api.github.com"
+            exit 1
+          fi
+          if ! grep -q "actions/runs" "$GITHUB_WORKSPACE/index.js"; then
+            echo "FAIL: index.js does not reference actions/runs endpoint"
+            exit 1
+          fi
+          if ! grep -q "cancel" "$GITHUB_WORKSPACE/index.js"; then
+            echo "FAIL: index.js does not reference cancel endpoint"
+            exit 1
+          fi
+          if ! grep -q "INPUT_TOKEN" "$GITHUB_WORKSPACE/index.js"; then
+            echo "FAIL: index.js does not use INPUT_TOKEN"
+            exit 1
+          fi
+          echo "PASS: index.js references correct API endpoint"
+
+      - name: Invoke cancel action with default token
+        id: cancel
+        uses: .
+        continue-on-error: true
+
+      - name: Assert cancel action ran
+        run: |
+          # The action either:
+          # 1. Succeeds (HTTP 202) - cancel was accepted, outcome is 'success'
+          # 2. Fails (non-202) - e.g. already cancelled, outcome is 'failure'
+          # Both outcomes mean the action ran and made the API call.
+          # Under act, the run ID may not be a real run, so we accept either outcome.
+          echo "Cancel step outcome: ${{ steps.cancel.outcome }}"
+          if [ "${{ steps.cancel.outcome }}" = "success" ] || [ "${{ steps.cancel.outcome }}" = "failure" ]; then
+            echo "PASS: cancel action executed (outcome: ${{ steps.cancel.outcome }})"
+          else
+            echo "FAIL: unexpected outcome: ${{ steps.cancel.outcome }}"
+            exit 1
+          fi

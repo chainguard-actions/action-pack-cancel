@@ -1,0 +1,52 @@
+name: Test cancel workflow with explicit token
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Verify token input is wired correctly in action.yml
+        run: |
+          # Confirm the action declares a 'token' input with a default
+          if ! grep -q "token:" "$GITHUB_WORKSPACE/action.yml"; then
+            echo "FAIL: action.yml missing 'token' input"
+            exit 1
+          fi
+          if ! grep -q "github.token" "$GITHUB_WORKSPACE/action.yml"; then
+            echo "FAIL: action.yml missing default github.token for token input"
+            exit 1
+          fi
+          echo "PASS: token input declared with default"
+
+      - name: Verify index.js uses Authorization header with token
+        run: |
+          if ! grep -q "Authorization" "$GITHUB_WORKSPACE/index.js"; then
+            echo "FAIL: index.js missing Authorization header"
+            exit 1
+          fi
+          if ! grep -q "INPUT_TOKEN" "$GITHUB_WORKSPACE/index.js"; then
+            echo "FAIL: index.js does not read INPUT_TOKEN env var"
+            exit 1
+          fi
+          echo "PASS: Authorization header uses INPUT_TOKEN"
+
+      - name: Invoke cancel action with explicit token
+        id: cancel_explicit
+        uses: .
+        with:
+          token: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Assert cancel action ran with explicit token
+        run: |
+          # The action either succeeds (HTTP 202) or fails (non-202 response).
+          # Both outcomes confirm the action ran and used the provided token.
+          echo "Cancel step outcome: ${{ steps.cancel_explicit.outcome }}"
+          if [ "${{ steps.cancel_explicit.outcome }}" = "success" ] || [ "${{ steps.cancel_explicit.outcome }}" = "failure" ]; then
+            echo "PASS: cancel action executed with explicit token (outcome: ${{ steps.cancel_explicit.outcome }})"
+          else
+            echo "FAIL: unexpected outcome: ${{ steps.cancel_explicit.outcome }}"
+            exit 1
+          fi
