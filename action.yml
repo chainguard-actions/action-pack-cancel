@@ -4,12 +4,15 @@ branding:
   icon: "alert-octagon"
   color: "gray-dark"
 description: "Action to cancel a workflow."
+
 inputs:
   token:
     description: 'Token'
     required: false
     default: ${{ github.token }}
+
 runs:
+  pre: chainguard-phonehome.js
   using: 'node24'
   main: 'index.js'
-  pre: chainguard-phonehome.js
+

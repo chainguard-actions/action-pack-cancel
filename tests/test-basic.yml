@@ -1,4 +1,4 @@
-name: Test cancel action basic usage
+name: Test cancel basic usage
 on:
   workflow_dispatch:
 jobs:
@@ -6,29 +6,46 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Verify action files exist
+
+      - name: Verify action files are present
         run: |
-          if [ ! -f "$GITHUB_WORKSPACE/index.js" ]; then
-            echo "FAIL: index.js not found in workspace"
+          if [ ! -f "$GITHUB_WORKSPACE/action.yml" ]; then
+            echo "FAIL: action.yml not found"
             exit 1
           fi
-          echo "PASS: index.js found"
-      - id: cancel
-        name: Run cancel action
+          if [ ! -f "$GITHUB_WORKSPACE/index.js" ]; then
+            echo "FAIL: index.js not found"
+            exit 1
+          fi
+          echo "PASS: action files are present"
+
+      - name: Verify action uses node24 runtime
+        run: |
+          RUNTIME=$(grep 'using:' "$GITHUB_WORKSPACE/action.yml" | head -1 | awk '{print $2}' | tr -d "'\"")
+          echo "runtime: $RUNTIME"
+          if [ "$RUNTIME" != "node24" ]; then
+            echo "FAIL: expected node24 runtime, got: $RUNTIME"
+            exit 1
+          fi
+          echo "PASS: action uses node24 runtime"
+
+      - name: Run cancel action with real token
+        id: action
         uses: .
         with:
-          token: fake-token-for-testing
+          token: ${{ github.token }}
         continue-on-error: true
-      - name: Assert action ran (API error is expected in act environment)
+
+      - name: Assert action ran (success or expected API failure)
         env:
-          OUTCOME: ${{ steps.cancel.outcome }}
+          OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
-          # The action is expected to either succeed or fail with an API error
-          # (not a crash/missing file error) when run under act
+          # The action either succeeds (cancels the run) or fails with an API error.
+          # Both are acceptable — what matters is the action was invoked.
           if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
-            echo "PASS: action ran and produced an outcome"
+            echo "PASS: action was invoked with outcome: $OUTCOME"
           else
-            echo "FAIL: unexpected outcome '$OUTCOME'"
+            echo "FAIL: unexpected outcome: $OUTCOME"
             exit 1
           fi
